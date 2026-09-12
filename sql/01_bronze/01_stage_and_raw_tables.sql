@@ -28,7 +28,7 @@ CREATE FILE FORMAT IF NOT EXISTS JSON_GZIP_FF
 -- Create a named external stage pointing to the project root in S3. The stage
 -- reuses both the IAM trust object and the JSON parsing rules defined above.
 CREATE STAGE IF NOT EXISTS URBANASSIST_S3_STAGE
-  URL = 's3://<S3_BUCKET_NAME>/urbanassist/'
+  URL = 's3://urban360-data/urbanassist/'
   STORAGE_INTEGRATION = URBANASSIST_S3_INT
   FILE_FORMAT = JSON_GZIP_FF
   COMMENT = 'External stage rooted at the UrbanAssist project prefix';

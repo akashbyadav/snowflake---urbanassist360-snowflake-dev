@@ -25,8 +25,8 @@ CREATE OR REPLACE STORAGE INTEGRATION URBANASSIST_S3_INT
   TYPE = EXTERNAL_STAGE
   STORAGE_PROVIDER = 'S3'
   ENABLED = TRUE
-  STORAGE_AWS_ROLE_ARN = '<AWS_ROLE_ARN>'
-  STORAGE_ALLOWED_LOCATIONS = ('s3://<S3_BUCKET_NAME>/urbanassist/')
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::851725469799:role/urban360-role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://urban360-data/urbanassist/')
   COMMENT = 'Read-only integration for UrbanAssist source files';
 
 -- Copy STORAGE_AWS_IAM_USER_ARN and STORAGE_AWS_EXTERNAL_ID from this result
