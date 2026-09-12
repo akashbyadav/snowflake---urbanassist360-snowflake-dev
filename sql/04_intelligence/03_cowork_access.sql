@@ -3,6 +3,10 @@
 UrbanAssist 360 | Intelligence 03 - Snowflake CoWork account-level visibility
 Run as: ACCOUNTADMIN
 
+REFERENCE/FALLBACK: The primary project path configures CoWork in Snowsight.
+Follow section 19 of docs/RUNBOOK.md. Use these statements only when the account
+does not expose the required access control in the UI.
+
 IMPORTANT: An account can have only one Snowflake CoWork object. First run SHOW.
 Run CREATE only when no object exists. If it already exists, skip CREATE and add
 the project Agent to the existing SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT object.

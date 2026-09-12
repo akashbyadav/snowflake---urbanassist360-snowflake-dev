@@ -10,7 +10,7 @@ files in numeric order.
 | `01_bronze` | Source landing and event-driven ingestion | JSON file format, external stage, raw tables, Snowpipes, initial reference loads |
 | `02_silver` | Data quality and latest-state processing | Clean booking and provider Dynamic Tables |
 | `03_gold` | Dimensional model and business processing | Dimensions, provider SCD2 Stream/Task, review AI Stream/Task, booking fact, daily KPI |
-| `04_intelligence` | Governed natural-language consumption | Semantic View, Cortex Agent, Snowflake CoWork access |
+| `04_intelligence` | UI configuration reference/fallback | Semantic View, Cortex Agent, Snowflake CoWork access |
 | `05_operations` | Verification, demonstration, and optional teardown | Pipeline monitoring, integrity checks, live-event walkthrough, commented cleanup |
 
 ## Required order
@@ -26,12 +26,14 @@ files in numeric order.
 03_gold/02_provider_scd2_automation.sql
 03_gold/03_review_ai_enrichment.sql
 03_gold/04_booking_fact_and_kpis.sql
-04_intelligence/01_semantic_view.sql
-04_intelligence/02_cortex_agent.sql
-04_intelligence/03_cowork_access.sql
 05_operations/01_monitoring_and_validation.sql
 05_operations/02_live_event_demo.sql
 ```
+
+Create the Intelligence objects through the Snowsight UI by following sections
+17–19 of `docs/RUNBOOK.md`. The files under `04_intelligence` document the exact
+equivalent object definitions and provide a troubleshooting fallback; they are
+not part of the primary UI execution sequence.
 
 `00_setup/03_github_workspace_integration.sql` is a one-time account setup file
 for a Git-connected Snowflake Workspace. Run it from a regular worksheet before
@@ -45,4 +47,3 @@ Comments immediately above each command explain what it changes, why it is
 needed, and what the developer should inspect afterward. For the complete AWS,
 S3, GitHub, upload, validation, and live-demo procedure, follow the repository
 runbook rather than executing files without their checkpoints.
-

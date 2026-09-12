@@ -3,6 +3,10 @@
 UrbanAssist 360 | Intelligence 01 - Semantic View for Cortex Analyst
 Run as: URBANASSIST_ENGINEER
 
+REFERENCE/FALLBACK: The primary project path creates this object through the
+Snowsight UI. Follow sections 17-19 of docs/RUNBOOK.md. Run this file only when
+you deliberately choose SQL-based creation or need to compare UI output.
+
 The semantic graph mirrors the physical star schema. Metrics stay attached to
 their natural fact table to avoid fanout and ambiguous aggregation.
 ===============================================================================

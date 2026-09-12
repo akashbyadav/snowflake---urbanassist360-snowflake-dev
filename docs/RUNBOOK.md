@@ -27,7 +27,7 @@ must pass before continuing because later objects depend on earlier state.
 ### GitHub
 
 - A non-empty repository with at least one branch
-- A development branch, for example `feature/urbanassist-360`
+- A development branch, for example `feature/urbanassist360-snowflake-dev`
 - Permission to authorize the Snowflake GitHub App for the repository
 - A Snowflake Git API integration that allows the repository HTTPS URL
 
@@ -36,7 +36,7 @@ repository or in SQL comments.
 
 ## 2. Prepare the Git-connected Snowflake Workspace
 
-1. Add the `urbanassist-360` folder to the GitHub repository.
+1. Add the `urbanassist360-snowflake-dev` folder to the GitHub repository.
 2. Commit and push it to the intended development branch. Snowflake cannot create
    a Git Workspace from an empty repository.
 3. From a regular Snowsight SQL worksheet, run the commands in the README's
@@ -51,7 +51,7 @@ repository or in SQL comments.
 8. Complete the Snowflake GitHub App authorization and create the Workspace.
 9. Open **Changes**, fetch all branches if needed, and switch to the project
    branch.
-10. Confirm that `urbanassist-360/sql/00_setup/01_account_and_roles.sql` opens as
+10. Confirm that `urbanassist360-snowflake-dev/sql/00_setup/01_account_and_roles.sql` opens as
     a SQL file.
 
 The Workspace is the development surface. Running a SQL file executes it against
@@ -378,62 +378,377 @@ The booking fact and KPI objects are Dynamic Tables. The manual refreshes at the
 end of the file make the initial result deterministic; normal refresh management
 continues afterward.
 
-## 17. Create and test the Semantic View
+## 17. Build the Semantic View from the Snowsight UI
 
-Run `sql/04_intelligence/01_semantic_view.sql`.
+The primary implementation path for the entire `04_intelligence` phase is the
+Snowsight UI. The three SQL files in `sql/04_intelligence` remain as readable,
+version-controlled reference definitions and troubleshooting fallbacks; do not
+run them when following this UI path.
 
-The final direct `SEMANTIC_VIEW` query must return city-level metrics. If it does
-not, stop before creating the Agent.
+### 17.1 Select the correct Snowflake context
 
-Review:
+1. Sign in to Snowsight.
+2. Use the role selector to switch to `URBANASSIST_ENGINEER`.
+3. Select `URBANASSIST_WH` as the warehouse.
+4. Confirm that all six Gold tables listed below are already populated. The
+   Semantic View stores metadata; it does not create or load the Gold tables.
 
-```sql
-SHOW SEMANTIC VIEWS IN SCHEMA URBANASSIST_DB.INTELLIGENCE;
-SHOW SEMANTIC DIMENSIONS IN SEMANTIC VIEW
-  URBANASSIST_DB.INTELLIGENCE.URBANASSIST_OPERATIONS_SV;
-SHOW SEMANTIC METRICS IN SEMANTIC VIEW
-  URBANASSIST_DB.INTELLIGENCE.URBANASSIST_OPERATIONS_SV;
-```
+### 17.2 Start the Semantic View wizard
 
-Two verified queries anchor cancellation rate by city and revenue by service
-category. Add verified queries only after a data owner has checked the expected
-SQL and result.
+1. Open **AI & ML → Cortex Analyst**.
+2. Select **Create new → Create new Semantic View**. In Workspace-based Semantic
+   Studio this can instead appear as **Add new → Semantic View**.
+3. Set the location to database `URBANASSIST_DB`, schema `INTELLIGENCE`.
+4. Enter object name `URBANASSIST_OPERATIONS_SV`.
+5. Enter this description:
 
-## 18. Create and test the Cortex Agent
+   > Governed operational analytics for UrbanAssist bookings, customers,
+   > providers, services, revenue, cancellations, ratings, service duration,
+   > and AI-enriched customer reviews.
 
-Run `sql/04_intelligence/02_cortex_agent.sql`.
+6. Select **Next**.
+7. Choose the option to start from Snowflake tables. If the wizard first offers
+   optional SQL, BI-file, or YAML context, select **Skip**.
+8. Select schema `URBANASSIST_DB.GOLD` and add these physical tables:
 
-In Snowsight:
+| Logical table name | Physical Snowflake table | Primary key in Semantic Studio | Business grain |
+|---|---|---|---|
+| `bookings` | `FACT_BOOKING` | `BOOKING_ID` | One row per latest logical booking |
+| `dates` | `DIM_DATE` | `DATE_KEY` | One row per calendar date |
+| `customers` | `DIM_CUSTOMER` | `CUSTOMER_KEY` | One row per customer |
+| `providers` | `DIM_PROVIDER_SCD2` | `PROVIDER_KEY` | One row per historical provider version |
+| `services` | `DIM_SERVICE` | `SERVICE_KEY` | One row per service |
+| `reviews` | `FACT_REVIEW_INSIGHT` | `BOOKING_ID` | One AI result per reviewed booking |
 
-1. Open **AI & ML → Agents**.
-2. Select **UrbanAssist Operations Agent**.
-3. Open the Agent playground.
-4. Ask: “What is the cancellation rate by city?”
-5. Confirm the Agent invokes `UrbanAssist_Analyst` and displays generated SQL.
-6. Compare the result with `GOLD.DT_DAILY_SERVICE_KPI`.
+`PROVIDER_KEY`, not `PROVIDER_ID`, is the provider primary key because one
+provider can have several SCD2 versions.
 
-If the Agent answers from general knowledge without a tool call, inspect the
-Agent specification. The tool name under `tool_resources` must exactly match the
-name under `tools`.
+### 17.3 Select only the required physical columns
 
-## 19. Add the Agent to Snowflake CoWork
+Selecting a focused column set makes the generated model easier to understand.
 
-Open `sql/04_intelligence/03_cowork_access.sql` as `ACCOUNTADMIN`.
+| Physical table | Columns to select |
+|---|---|
+| `FACT_BOOKING` | `BOOKING_ID`, `BOOKING_DATE_KEY`, `CUSTOMER_KEY`, `PROVIDER_KEY`, `SERVICE_KEY`, `BOOKING_CITY`, `BOOKING_STATUS`, `PAYMENT_METHOD`, `BOOKING_CREATED_AT`, `SCHEDULED_AT`, `SERVICE_STARTED_AT`, `SERVICE_COMPLETED_AT`, `GROSS_AMOUNT`, `DISCOUNT_AMOUNT`, `FINAL_AMOUNT`, `RATING`, `SERVICE_DURATION_MINUTES`, `COMPLETED_BOOKING_COUNT`, `CANCELLED_BOOKING_COUNT` |
+| `DIM_DATE` | `DATE_KEY`, `FULL_DATE`, `DAY_NAME`, `MONTH_NAME`, `QUARTER`, `YEAR`, `IS_WEEKEND` |
+| `DIM_CUSTOMER` | `CUSTOMER_KEY`, `CUSTOMER_SEGMENT`, `HOME_CITY` |
+| `DIM_PROVIDER_SCD2` | `PROVIDER_KEY`, `PROVIDER_ID`, `PROVIDER_NAME`, `PRIMARY_CITY`, `OPERATING_ZONE`, `PROVIDER_TIER`, `EXPERIENCE_LEVEL`, `ACTIVE_STATUS` |
+| `DIM_SERVICE` | `SERVICE_KEY`, `SERVICE_NAME`, `SERVICE_CATEGORY`, `SKILL_LEVEL_REQUIRED` |
+| `FACT_REVIEW_INSIGHT` | `BOOKING_ID`, `SENTIMENT_LABEL`, `COMPLAINT_CATEGORY` |
 
-1. Run only `SHOW SNOWFLAKE INTELLIGENCES` first.
-2. If it returns no rows, run the `CREATE SNOWFLAKE INTELLIGENCE` statement.
-3. If an object already exists, skip CREATE. An account can have only one.
-4. Grant the project role USAGE and MODIFY on the object.
-5. Add the Agent.
-6. Replace `<YOUR_SNOWFLAKE_USER>` and set default role/warehouse only if the
-   existing defaults are not already appropriate.
+Select **Generate** or **Next**, review the suggestions, and open the generated
+view in Semantic Studio. Do not assume every AI suggestion is correct; reconcile
+it with the mappings below.
 
-Snowflake CoWork and Cortex Agents use the querying user's default role and
-default warehouse when initializing the session. A currently selected role in a
-different Snowsight worksheet does not replace that requirement.
+### 17.4 Set logical names and relationships
 
-Open [https://ai.snowflake.com](https://ai.snowflake.com), or use **Preview in
-Snowflake CoWork** from the Agent page. Confirm that the Agent appears.
+Edit each logical table and set the logical name and primary key exactly as in
+section 17.2. Then select **+ Relationship** and add these five relationships:
+
+| Relationship name | Foreign-key side | Referenced side | Business meaning |
+|---|---|---|---|
+| `bookings_to_dates` | `bookings.BOOKING_DATE_KEY` | `dates.DATE_KEY` | Date when the booking was created |
+| `bookings_to_customers` | `bookings.CUSTOMER_KEY` | `customers.CUSTOMER_KEY` | Customer who placed the booking |
+| `bookings_to_providers` | `bookings.PROVIDER_KEY` | `providers.PROVIDER_KEY` | Provider version valid for the booking |
+| `bookings_to_services` | `bookings.SERVICE_KEY` | `services.SERVICE_KEY` | Service requested |
+| `reviews_to_bookings` | `reviews.BOOKING_ID` | `bookings.BOOKING_ID` | Optional AI review insight for a booking |
+
+The booking or review table is always the foreign-key side. Semantic Views
+infer the join and relationship type from keys, so there is no need to force a
+left or inner join in this screen.
+
+### 17.5 Define dimensions
+
+In each logical table, open **Dimensions** and retain or add the following
+business fields. Use the semantic name in the first column and map it to the
+physical column in the second column.
+
+| Logical table | Semantic dimension | Physical column | Useful synonyms |
+|---|---|---|---|
+| `bookings` | `booking_id` | `BOOKING_ID` | — |
+| `bookings` | `booking_city` | `BOOKING_CITY` | city, market |
+| `bookings` | `booking_status` | `BOOKING_STATUS` | status, job status |
+| `bookings` | `payment_method` | `PAYMENT_METHOD` | payment type |
+| `dates` | `booking_date` | `FULL_DATE` | date, booking date |
+| `dates` | `day_name` | `DAY_NAME` | weekday |
+| `dates` | `month_name` | `MONTH_NAME` | month |
+| `dates` | `quarter` | `QUARTER` | — |
+| `dates` | `year` | `YEAR` | — |
+| `dates` | `is_weekend` | `IS_WEEKEND` | weekend |
+| `customers` | `customer_segment` | `CUSTOMER_SEGMENT` | segment, customer type |
+| `customers` | `customer_home_city` | `HOME_CITY` | home city |
+| `providers` | `provider_id` | `PROVIDER_ID` | professional ID, partner ID |
+| `providers` | `provider_name` | `PROVIDER_NAME` | professional, partner |
+| `providers` | `provider_city` | `PRIMARY_CITY` | primary city |
+| `providers` | `operating_zone` | `OPERATING_ZONE` | zone |
+| `providers` | `provider_tier` | `PROVIDER_TIER` | tier, provider level |
+| `providers` | `experience_level` | `EXPERIENCE_LEVEL` | experience |
+| `providers` | `active_status` | `ACTIVE_STATUS` | provider status |
+| `services` | `service_name` | `SERVICE_NAME` | service |
+| `services` | `service_category` | `SERVICE_CATEGORY` | category, service type |
+| `services` | `skill_level_required` | `SKILL_LEVEL_REQUIRED` | skill level |
+| `reviews` | `sentiment` | `SENTIMENT_LABEL` | sentiment, customer mood |
+| `reviews` | `complaint_theme` | `COMPLAINT_CATEGORY` | complaint, issue, review category |
+
+Add the listed synonyms manually. Domain synonyms improve question matching;
+irrelevant generated synonyms can reduce accuracy.
+
+### 17.6 Define row-level facts and governed metrics
+
+Under the `bookings` logical table, add these **Facts**:
+
+| Semantic fact | Expression/physical column | Meaning |
+|---|---|---|
+| `gross_amount` | `GROSS_AMOUNT` | Price before discount |
+| `discount_amount` | `DISCOUNT_AMOUNT` | Discount granted |
+| `final_amount` | `FINAL_AMOUNT` | Final customer charge/revenue |
+| `rating` | `RATING` | Customer rating |
+| `service_duration_minutes` | `SERVICE_DURATION_MINUTES` | Actual service duration |
+| `completed_flag` | `COMPLETED_BOOKING_COUNT` | 1 for a completed booking, otherwise 0 |
+| `cancelled_flag` | `CANCELLED_BOOKING_COUNT` | 1 for a cancelled booking, otherwise 0 |
+
+Under `bookings`, add these **Metrics**. Enter the expression using the logical
+fields shown by Semantic Studio; its autocomplete should resolve them.
+
+| Metric name | Metric expression | Format/meaning |
+|---|---|---|
+| `total_bookings` | `COUNT(booking_id)` | Number of bookings |
+| `completed_bookings` | `SUM(completed_flag)` | Completed bookings |
+| `cancelled_bookings` | `SUM(cancelled_flag)` | Cancelled bookings |
+| `completion_rate` | `SUM(completed_flag) / NULLIF(COUNT(booking_id), 0)` | Display as percentage |
+| `cancellation_rate` | `SUM(cancelled_flag) / NULLIF(COUNT(booking_id), 0)` | Display as percentage |
+| `gross_revenue` | `SUM(gross_amount)` | INR currency; synonyms: gross sales, GMV |
+| `net_revenue` | `SUM(final_amount)` | INR currency; synonyms: revenue, sales, earnings |
+| `average_booking_value` | `AVG(final_amount)` | INR currency; synonyms: ABV, average order value |
+| `average_rating` | `AVG(rating)` | Average customer rating |
+| `average_service_duration` | `AVG(service_duration_minutes)` | Average minutes |
+
+Under `reviews`, add:
+
+| Metric name | Metric expression | Meaning |
+|---|---|---|
+| `enriched_review_count` | `COUNT(booking_id)` | Reviews processed by AI Functions |
+| `negative_review_count` | `COUNT_IF(SENTIMENT_LABEL = 'negative')` | Enriched reviews classified as negative |
+
+For metric expressions, select fields from Semantic Studio autocomplete. This
+avoids quoting or case mistakes and makes it clear whether the editor is using a
+semantic fact name or its underlying physical-column expression.
+
+### 17.7 Add Cortex Analyst instructions
+
+Open the custom-instructions area and add:
+
+- **SQL generation:** `Round rates to four decimals and currency metrics to two decimals. Display currency as INR. Use booking creation date unless the user explicitly requests another timestamp.`
+- **Question categorization:** `This model covers bookings, customers, services, provider history, revenue, ratings, cancellations, service duration, and enriched review sentiment. Ask for clarification when a time period or comparison group is ambiguous.`
+
+### 17.8 Save, deploy, and test Cortex Analyst
+
+1. Select **Save** after every modeling group is complete.
+2. Select **Deploy** in the top bar.
+3. Choose `URBANASSIST_DB.INTELLIGENCE` as the deployment target.
+4. Review the generated diff and confirm deployment.
+5. If Semantic Studio creates `cortex-project.yaml`, leave it in place; Snowflake
+   manages that project manifest.
+6. Open the preview/chat panel for the deployed Semantic View and choose
+   `URBANASSIST_WH` when asked for compute.
+7. Ask these questions one at a time:
+
+   - `What is the cancellation rate by city?`
+   - `Which service category generated the most net revenue?`
+   - `Compare completion rate for Standard and Premium providers.`
+   - `What are the most common complaint themes among negative reviews?`
+
+8. For each answer, inspect the generated SQL, result columns, and join path.
+   Confirm that rates use the governed flags and provider questions join through
+   `PROVIDER_KEY`, not `PROVIDER_ID`.
+9. Save the first two tested questions as verified queries only after their SQL
+   and results are correct. Mark them as onboarding questions if the UI offers
+   that option.
+
+`Cortex Analyst` is not a separate schema object that must be created after the
+Semantic View. It is Snowflake's natural-language-to-SQL capability. The
+deployed Semantic View supplies its business vocabulary, joins, and metrics;
+the next section attaches that capability to an Agent as a tool.
+
+## 18. Create the Cortex Agent and add Analyst from the UI
+
+### 18.1 Create the Agent object
+
+1. Keep role `URBANASSIST_ENGINEER` and warehouse `URBANASSIST_WH` selected.
+2. Open **AI & ML → Agents**.
+3. Select **Create agent**.
+4. Set database `URBANASSIST_DB` and schema `INTELLIGENCE`.
+5. Set **Agent object name** to `URBANASSIST_OPERATIONS_AGENT`.
+6. Set **Display name** to `UrbanAssist Operations Agent`.
+7. Set the description to:
+
+   > Answers governed operational questions about UrbanAssist bookings,
+   > customers, provider history, services, revenue, cancellations, ratings,
+   > service duration, sentiment, and complaint themes.
+
+8. Choose the blue profile color if the field is available and select **Create
+   agent**.
+
+At this point the Agent has general model knowledge but no project-data access.
+The next step gives it Cortex Analyst as its one governed data tool.
+
+### 18.2 Attach the Cortex Analyst tool
+
+1. On the Agent page select **Edit**, then open **Tools**.
+2. Find **Cortex Analyst** and select **+ Add**.
+3. Choose **Semantic view**.
+4. Select database `URBANASSIST_DB`, schema `INTELLIGENCE`, and semantic view
+   `URBANASSIST_OPERATIONS_SV`.
+5. Use tool name `URBANASSIST_OPERATIONS_SV`. For semantic-view tools, current
+   Snowsight uses the Semantic View name as the tool name.
+6. Enter this tool description:
+
+   > Generates governed SQL for UrbanAssist booking, revenue, provider,
+   > service, customer, rating, duration, and AI-enriched review analysis.
+
+7. For warehouse choose **Custom → URBANASSIST_WH**.
+8. Set query timeout to `60` seconds.
+9. Select **Add**.
+
+### 18.3 Configure orchestration and sample questions
+
+1. Open **Orchestration**.
+2. Leave the orchestration model on **Auto**, unless the account requires an
+   approved specific model.
+3. Enter this **Planning instruction**:
+
+   > Use URBANASSIST_OPERATIONS_SV for every question about bookings,
+   > customers, providers, services, revenue, cancellations, ratings, service
+   > duration, sentiment, or complaint themes. Never invent business values.
+   > Ask for clarification when the requested date range or comparison group is
+   > ambiguous.
+
+4. Enter this **Response instruction**:
+
+   > Lead with the operational conclusion. State the metrics used, format rates
+   > as percentages and currency as INR, and clearly separate measured facts
+   > from recommendations.
+
+5. If budget configuration is displayed, set the response time limit to `30`
+   seconds and the orchestration token limit to `16000`.
+6. Add these sample questions:
+
+   - `Which city and service category need the most attention?`
+   - `Compare performance for Standard and Premium providers.`
+   - `What are the most common themes in negative reviews?`
+
+7. Select **Save**.
+
+### 18.4 Test in the Agent playground
+
+1. Enter `What is the cancellation rate by city?`.
+2. Expand the response details and confirm that the Agent called
+   `URBANASSIST_OPERATIONS_SV` as a Cortex Analyst tool.
+3. Inspect the generated SQL and confirm that it queried project data rather
+   than answering from general knowledge.
+4. Ask `Which service category generated the most net revenue?` and confirm that
+   the tool joins bookings to services through `SERVICE_KEY`.
+5. Ask a follow-up, `Show only completed bookings`, to demonstrate that the
+   conversation retains context.
+
+Do not proceed to CoWork if the Agent does not make a tool call. Reopen **Edit →
+Tools** and verify the Semantic View, warehouse, and tool name.
+
+## 19. Configure and test Snowflake CoWork from the UI
+
+### 19.1 Understand the account-level boundary
+
+Snowflake CoWork is the conversational application in which users choose and
+interact with Agents. A Snowflake account can have only one account-level CoWork
+object. Do not delete or replace an existing object just for this project.
+
+### 19.2 Create or open CoWork settings
+
+1. In Snowsight switch to `ACCOUNTADMIN` for the one-time account configuration.
+2. Open **AI & ML → Agents**.
+3. Open the **Snowflake CoWork** tab and select **Open settings**. The first saved
+   UI configuration automatically creates the account object named
+   `SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT` if it does not already exist.
+4. If an organization-wide CoWork configuration already exists, preserve its
+   branding and existing Agent list.
+5. For a new development configuration, use:
+
+   - Display name: `UrbanAssist Data CoWork`
+   - Welcome message: `Ask governed questions about bookings, revenue, service performance, providers, ratings, cancellations, and customer reviews.`
+   - Color theme: choose a simple blue theme
+
+6. In the Agent visibility/list area, select **Add agent** (or enable the Agent
+   in the available-Agent list), choose
+   `URBANASSIST_DB.INTELLIGENCE.URBANASSIST_OPERATIONS_AGENT`, and save.
+
+Adding the Agent controls whether it appears in the curated CoWork list; it does
+not bypass Snowflake role permissions.
+
+### 19.3 Verify user access and defaults in Snowsight
+
+For the developer who will test CoWork:
+
+1. Open **Admin → Users & Roles → Users** and select the user.
+2. Select **Edit** and verify:
+   - Default role: `URBANASSIST_ENGINEER`
+   - Default warehouse: `URBANASSIST_WH`
+3. Open the `URBANASSIST_ENGINEER` role and verify it has access to:
+   - database `URBANASSIST_DB` and schema `INTELLIGENCE`;
+   - Agent `URBANASSIST_OPERATIONS_AGENT`;
+   - Semantic View `URBANASSIST_OPERATIONS_SV` and its Gold source tables;
+   - warehouse `URBANASSIST_WH`;
+   - Snowflake database role `SNOWFLAKE.CORTEX_AGENT_USER`.
+4. In the CoWork settings access/privileges area, grant or verify `USAGE` for
+   `URBANASSIST_ENGINEER` on the CoWork object. Keep `MODIFY` restricted to the
+   administrator unless developers genuinely need to curate the global Agent
+   list.
+
+The project setup script already grants the Cortex database roles and makes the
+project role the owner of its database objects. Some Snowflake releases expose
+all CoWork grants in the settings UI; if the account does not show a CoWork
+privilege editor, use only the grant statements in
+`sql/04_intelligence/03_cowork_access.sql` as the administrative fallback.
+
+CoWork initializes a new session using the user's **default** role and default
+warehouse. Changing the active role in an unrelated worksheet does not change
+those login defaults.
+
+### 19.4 Open CoWork and perform acceptance tests
+
+1. Return to **AI & ML → Agents** and select **UrbanAssist Operations Agent**.
+2. Select **Preview in Snowflake CoWork**. Alternatively, open
+   [https://ai.snowflake.com](https://ai.snowflake.com) and sign in to the same
+   Snowflake account.
+3. Confirm that **UrbanAssist Operations Agent** is visible and selected.
+4. Ask:
+
+   > Summarize bookings, completion rate, cancellation rate, and net revenue by
+   > city. Separate facts from recommendations.
+
+5. Confirm that the answer shows project results and traceability to the
+   generated query/tool call.
+6. Ask:
+
+   > What are the most common complaint themes among negative reviews, and what
+   > operational action would you recommend?
+
+7. Confirm that the first part is supported by the Semantic View and the
+   recommendation is clearly distinguished from measured facts.
+8. Ask for a bar chart of cancellation rate by city to demonstrate CoWork's
+   conversational visualization capability.
+
+The Intelligence phase is complete when all four checkpoints pass:
+
+- the Semantic View deploys;
+- Cortex Analyst produces valid governed SQL;
+- the Agent consistently invokes the Analyst tool for project-data questions;
+- the Agent is visible and queryable in Snowflake CoWork.
+
+Current Snowflake UI references:
+
+- [Semantic Studio](https://docs.snowflake.com/en/user-guide/views-semantic/semantic-studio)
+- [Create and manage Cortex Agents](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-manage)
+- [CoWork user access and Agent visibility](https://docs.snowflake.com/en/user-guide/snowflake-cortex/snowflake-cowork/deploy-agents)
 
 ## 20. Run the validation gates
 
@@ -501,8 +816,8 @@ Useful follow-ups:
 | Streams | `IF NOT EXISTS`; offsets preserved |
 | Procedures/Tasks | Replaced with repository definition |
 | Historical AI backfill | Review hash prevents unchanged updates, but AI source query can still incur calls |
-| Semantic View/Agent | Replaced; recheck grants and Agent behavior |
-| CoWork object | Conditional; never recreate an existing shared object |
+| Semantic View/Agent | Edit and deploy from the UI; review the diff because deployment replaces the live definition |
+| CoWork object | Edit the existing account-level object; never recreate or delete a shared configuration for a rerun |
 
 Do not replace a stream merely to clear it. Consume or deliberately recreate it
 only after deciding how pending changes will be recovered.

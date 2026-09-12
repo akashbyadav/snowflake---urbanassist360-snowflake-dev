@@ -2,6 +2,10 @@
 ===============================================================================
 UrbanAssist 360 | Intelligence 02 - Cortex Agent backed by Cortex Analyst
 Run as: URBANASSIST_ENGINEER
+
+REFERENCE/FALLBACK: The primary project path creates and configures the Agent
+through the Snowsight UI. Follow sections 17-19 of docs/RUNBOOK.md. Run this file
+only when deliberately using SQL or comparing the stored specification.
 ===============================================================================
 */
 
@@ -35,7 +39,7 @@ CREATE OR REPLACE AGENT URBANASSIST_OPERATIONS_AGENT
 
   instructions:
     response: "Lead with the operational conclusion. Cite the metrics used, format rates as percentages and currency as INR, and keep recommendations separate from facts."
-    orchestration: "Use UrbanAssist_Analyst for every question about bookings, customers, providers, services, revenue, cancellations, ratings, service duration, sentiment, or complaint categories. Never invent business values."
+    orchestration: "Use URBANASSIST_OPERATIONS_SV for every question about bookings, customers, providers, services, revenue, cancellations, ratings, service duration, sentiment, or complaint categories. Never invent business values."
     system: "You are an operations analyst for a home-services marketplace. Identify material issues, explain evidence, and recommend practical actions."
     sample_questions:
       - question: "Which city and service category need the most attention?"
@@ -45,11 +49,11 @@ CREATE OR REPLACE AGENT URBANASSIST_OPERATIONS_AGENT
   tools:
     - tool_spec:
         type: "cortex_analyst_text_to_sql"
-        name: "UrbanAssist_Analyst"
+        name: "URBANASSIST_OPERATIONS_SV"
         description: "Queries the governed UrbanAssist semantic view for booking, revenue, provider, service, customer, and AI-enriched review metrics."
 
   tool_resources:
-    UrbanAssist_Analyst:
+    URBANASSIST_OPERATIONS_SV:
       semantic_view: "URBANASSIST_DB.INTELLIGENCE.URBANASSIST_OPERATIONS_SV"
       execution_environment:
         type: "warehouse"

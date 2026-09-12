@@ -234,7 +234,7 @@ The resulting Gold model can answer business questions such as:
 ## Repository layout
 
 ```text
-urbanassist-360/
+urbanassist360-snowflake-dev/
 ├── README.md
 ├── config/
 │   └── project.env.example
@@ -295,7 +295,7 @@ secret.
 - Create the GitHub repository and add at least one commit. Snowflake cannot
   create a Git Workspace from an empty repository.
 - Copy the repository's HTTPS URL, for example
-  `https://github.com/acme-data/urbanassist-360`.
+  `https://github.com/acme-data/urbanassist360-snowflake-dev`.
 - Decide which existing branch to use, or create a development branch in the
   Workspace after it is connected.
 - Ensure the account administrator can create API integrations. If a GitHub
@@ -355,7 +355,7 @@ in Snowsight:
 7. Name the Workspace and complete its creation.
 8. Open the **Changes** view, select the repository/branch menu, and either
    switch to the intended remote branch or select **New** to create a branch.
-9. Confirm that `urbanassist-360/README.md` and the layer-oriented `sql/`
+9. Confirm that `urbanassist360-snowflake-dev/README.md` and the layer-oriented `sql/`
    folders are visible before executing project files.
 
 Normal development then follows this loop:
@@ -385,11 +385,10 @@ Follow the [complete runbook](docs/RUNBOOK.md). The abbreviated sequence is:
 | 8 | `sql/03_gold/02_provider_scd2_automation.sql` | Provider Stream, procedure, and Task | Project role |
 | 9 | `sql/03_gold/03_review_ai_enrichment.sql` | Historical AI sample and live AI Task | Project role |
 | 10 | `sql/03_gold/04_booking_fact_and_kpis.sql` | Booking fact and daily KPIs | Project role |
-| 11 | `sql/04_intelligence/01_semantic_view.sql` | Governed semantic layer | Project role |
-| 12 | `sql/04_intelligence/02_cortex_agent.sql` | Operations Agent and Analyst tool | Project role |
-| 13 | `sql/04_intelligence/03_cowork_access.sql` | Account-level Agent visibility | Account admin |
-| 14 | `sql/05_operations/01_monitoring_and_validation.sql` | Health and quality gates | Project role |
-| 15 | `sql/05_operations/02_live_event_demo.sql` | Held-back file walkthrough | Project role |
+| 11 | Runbook sections 17–19 (Snowsight UI) | Semantic View, Cortex Analyst tool, Agent, and CoWork | Project role, then account admin for CoWork |
+| Reference only | `sql/04_intelligence/*.sql` | Version-controlled definitions and troubleshooting fallback; do not run for the UI path | As stated in each file |
+| 12 | `sql/05_operations/01_monitoring_and_validation.sql` | Health and quality gates | Project role |
+| 13 | `sql/05_operations/02_live_event_demo.sql` | Held-back file walkthrough | Project role |
 
 Do not upload `booking_live_batch.json.gz` or
 `provider_changes_live.json.gz` until
@@ -444,8 +443,8 @@ After the live files and Tasks complete:
 - [Dynamic Tables](https://docs.snowflake.com/en/user-guide/dynamic-tables/overview)
 - [Streams on Dynamic Tables](https://docs.snowflake.com/en/user-guide/dynamic-tables/streams-on-dts)
 - [Cortex AI Functions](https://docs.snowflake.com/en/user-guide/snowflake-cortex/aisql)
-- [Semantic Views using SQL](https://docs.snowflake.com/en/user-guide/views-semantic/sql)
-- [Cortex Agents](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-get-started)
-- [Snowflake CoWork](https://docs.snowflake.com/en/user-guide/snowflake-cortex/snowflake-cowork)
+- [Semantic Studio and Semantic View UI](https://docs.snowflake.com/en/user-guide/views-semantic/semantic-studio)
+- [Create and manage Cortex Agents](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-manage)
+- [Snowflake CoWork access and Agent visibility](https://docs.snowflake.com/en/user-guide/snowflake-cortex/snowflake-cowork/deploy-agents)
 - [Git-connected Workspaces](https://docs.snowflake.com/en/user-guide/ui-snowsight/workspaces-git)
 - [Setting up Snowflake to use Git](https://docs.snowflake.com/en/developer-guide/git/git-setting-up)
