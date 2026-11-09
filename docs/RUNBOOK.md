@@ -541,33 +541,47 @@ Open the custom-instructions area and add:
 - **SQL generation:** `Round rates to four decimals and currency metrics to two decimals. Display currency as INR. Use booking creation date unless the user explicitly requests another timestamp.`
 - **Question categorization:** `This model covers bookings, customers, services, provider history, revenue, ratings, cancellations, service duration, and enriched review sentiment. Ask for clarification when a time period or comparison group is ambiguous.`
 
-### 17.8 Save, deploy, and test Cortex Analyst
+### 17.8 Save and verify the Semantic View
 
-1. Select **Save** after every modeling group is complete.
-2. Select **Deploy** in the top bar.
-3. Choose `URBANASSIST_DB.INTELLIGENCE` as the deployment target.
-4. Review the generated diff and confirm deployment.
-5. If Semantic Studio creates `cortex-project.yaml`, leave it in place; Snowflake
-   manages that project manifest.
-6. Open the preview/chat panel for the deployed Semantic View and choose
-   `URBANASSIST_WH` when asked for compute.
-7. Ask these questions one at a time:
+Because this runbook starts from **AI & ML → Cortex Analyst → Create new Semantic
+View**, **Save** is the final creation action. There is no separate Deploy button
+in this wizard.
+
+1. Select **Save**.
+2. Wait until Snowflake confirms that the Semantic View was created.
+3. Return to **AI & ML → Cortex Analyst** and confirm that
+   `URBANASSIST_OPERATIONS_SV` appears in the list.
+4. Open it and verify that its location is
+   `URBANASSIST_DB.INTELLIGENCE` and that it contains six logical tables and five
+   relationships.
+5. If the page provides a preview or chat panel, select `URBANASSIST_WH` and ask
+   these questions one at a time:
 
    - `What is the cancellation rate by city?`
    - `Which service category generated the most net revenue?`
    - `Compare completion rate for Standard and Premium providers.`
    - `What are the most common complaint themes among negative reviews?`
 
-8. For each answer, inspect the generated SQL, result columns, and join path.
+6. For each answer, inspect the generated SQL, result columns, and join path.
    Confirm that rates use the governed flags and provider questions join through
    `PROVIDER_KEY`, not `PROVIDER_ID`.
-9. Save the first two tested questions as verified queries only after their SQL
+7. Save the first two tested questions as verified queries only after their SQL
    and results are correct. Mark them as onboarding questions if the UI offers
    that option.
 
+If this Cortex Analyst page does not provide a chat panel, that is not an error.
+Continue to section 18, attach the Semantic View to the Agent, and perform the
+same tests from the Agent playground.
+
+The **Deploy** button belongs to the other authoring route: Semantic Studio
+inside a Snowflake Workspace, where the view is maintained as a local
+`.sv.yaml` file and then deployed to a live object. Only that Workspace route
+creates the auto-managed `cortex-project.yaml` file. These steps are not needed
+for the wizard route used by this runbook.
+
 `Cortex Analyst` is not a separate schema object that must be created after the
 Semantic View. It is Snowflake's natural-language-to-SQL capability. The
-deployed Semantic View supplies its business vocabulary, joins, and metrics;
+saved Semantic View supplies its business vocabulary, joins, and metrics;
 the next section attaches that capability to an Agent as a tool.
 
 ## 18. Create the Cortex Agent and add Analyst from the UI
@@ -739,7 +753,7 @@ those login defaults.
 
 The Intelligence phase is complete when all four checkpoints pass:
 
-- the Semantic View deploys;
+- the Semantic View is saved and appears in the Cortex Analyst list;
 - Cortex Analyst produces valid governed SQL;
 - the Agent consistently invokes the Analyst tool for project-data questions;
 - the Agent is visible and queryable in Snowflake CoWork.
